@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.IO;
+using Microsoft.Extensions.DependencyInjection; // for decoupling services (later)
 
 class Program
 {
@@ -15,7 +16,7 @@ class Program
         StudentAdded += NotifyStudentAdded;
         while (true)
         {
-            Console.WriteLine("\n1. Add Student\n2. View Students\n3. Delete Student\n4. Filter Students By Age\n5.Save students to file\n6.Load students from file\n7.Exit");
+            Console.WriteLine("\n1. Add Student\n2. View Students\n3. Delete Student\n4. Filter Students By Age\n5.Save students to file\n6.Load students from file\n7.Get Students Age Category\n8.Exit");
             Console.Write("Choose an option: ");
             string choice = Console.ReadLine();
 
@@ -40,6 +41,9 @@ class Program
                     LoadStudentsFromFile();
                     break;
                 case "7":
+                    GetStudentsAgeCategory();
+                    break;
+                case "8":
                     return;
                 default:
                     Console.WriteLine("Invalid option.");
@@ -69,6 +73,39 @@ class Program
         students.Add(new Student { ID = id, Name = name, Age = age });
         StudentAdded?.Invoke(new Student { ID = id, Name = name, Age = age });
         Console.WriteLine("Student added successfully.");
+    }
+
+    static void GetStudentsAgeCategory()
+    {
+        try
+        {
+            Console.Write("Enter Student ID to find category: ");
+            if (!int.TryParse(Console.ReadLine(), out int id) || id <= 0)
+            {
+                Console.WriteLine("Invalid ID. Please enter a valid positive integer.");
+                return;
+            }
+
+            var student = students.Find(s => s.ID == id);
+            if (student != null)
+            {
+                var result = student switch
+                {
+                    { Age: < 18 } => "Student is a minor.",
+                    { Age: >= 18 and < 60 } => "Student is an adult.",
+                    _ => "Student is a senior citizen."
+                };
+                Console.WriteLine(result);
+            }
+            else
+            {
+                Console.WriteLine("Student not found.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred while deleting the student: {ex.Message}");
+        }
     }
 
     static void ViewStudents()
@@ -139,18 +176,18 @@ class Program
         Console.WriteLine($"Event: A new student has been added - ID: {student.ID}, Name: {student.Name}");
     }
 
-    static void SaveStudentsToFile()
+    static async Task SaveStudentsToFile()
     {
         string json = JsonSerializer.Serialize(students, new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText("students.json", json);
+        await File.WriteAllTextAsync("students.json", json);
         Console.WriteLine("Students saved to file.");
     }
 
-    static void LoadStudentsFromFile()
+    static async Task LoadStudentsFromFile()
     {
         if (File.Exists("students.json"))
         {
-            string json = File.ReadAllText("students.json");
+            string json = await File.ReadAllTextAsync("students.json");
             students = JsonSerializer.Deserialize<List<Student>>(json) ?? new List<Student>();
             Console.WriteLine("Students loaded from file.");
         }
